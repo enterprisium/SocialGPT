@@ -8,13 +8,12 @@ GPT-YouTube-Short-Make is an AI-powered tool that utilizes OpenAI's GPT-4 model 
 - ✅ Generate similar scripts
 - ✅ Pick the best one
 - ✅ Generate a voice over for the video
-- ✅ Download background videos (luxury cars, mansions, vacations, etc)
+- ✅ Download background videos (luxury cars, mansions, etc)
 - ✅ Create 9:16 video (One vision 3-5 seconds, scene transition, caption, caption bounce, filter)
 - ✅ (Optional) Use trending background music
 - ✅ Use GPT-4 to generate video titles
-- ✅ Guess the music using shazam or similar service and get the youtube link
+- ✅ Guess the music using shazam or similar service
 - ✅ Generate a caption for video
-- ✅ The generated video transcript does not sound as "effective" as an original one
 - ✅ Add watermark
 - ✅ Add ability to post on youtube
 - ❌ Resolve youtube 'No, it's not made for kids'
