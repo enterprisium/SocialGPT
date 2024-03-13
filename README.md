@@ -7,7 +7,8 @@ YouTube-Short-Make is an AI-powered tool that utilizes OpenAI's GPT model to rec
 - ✅ Pick the best one
 - ✅ Generate a voice over for the video
 - ✅ Download background videos (luxury cars, mansions, etc)
-- ✅ Create 9:16 video (One vision 3-5 seconds, scene transition, caption, caption bounce, filter)
+- ✅ Create video in Landsacpe or Vertical Mode.
+- ✅ 3-5 seconds, scene transition, caption, bounce, filter
 - ✅ (Optional) Use trending background music
 - ✅ Use GPT-4 to generate video titles
 - ✅ Guess the music using shazam or similar service
