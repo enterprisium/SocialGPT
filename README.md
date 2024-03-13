@@ -1,5 +1,4 @@
-YouTube Shorts:
-YouTube-Short-Make is an AI-powered tool that utilizes OpenAI's GPT model to recreate videos based on YT short links.
+An AI-powered tool that utilizes OpenAI's GPT model to recreate videos based on YT short links.
 
 ## Features
 - ✅ Get the transcript for a video
