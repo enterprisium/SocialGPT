@@ -14,14 +14,8 @@ An AI-powered tool that utilizes OpenAI's GPT model to recreate videos based on 
 - ✅ Generate a caption for video
 - ✅ Add watermark
 - ✅ Add ability to post on youtube
-- ❌ Resolve youtube 'No, it's not made for kids'
-- ❌ Keep it under 1 minute
-- ❌ Auto search for reference video
-- ❌ Add ability to post on Instagram
-- ❌ If reference youtube video is age restricted try to download the next one
-
+- 
 ## Usage
-
 To recreate the provided example, run the [Youtube_Similar_Shorts_Generation.ipynb](https://github.com/enterprisium/SocialGPT/blob/main/Youtube_Similar_Shorts_Genration.ipynb) notebook. Make sure to set the required environment variables, such as `OPENAI_API_KEY` and `PEXELS_API_KEY`.
 
 [![Open in Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/enterprisium/SocialGPT/blob/main/Youtube_Similar_Shorts_Genration.ipynb)
