@@ -1,0 +1,271 @@
+from IPython.display import HTML
+from base64 import b64encode
+import os
+import shutil
+import subprocess
+import random
+
+def play(f):
+    mp4 = open(f, 'rb').read()
+    data_url = "data:video/mp4;base64," + b64encode(mp4).decode()
+    return HTML("""
+    <video width=400 controls>
+        <source src="%s" type="video/mp4">
+    </video>
+    """ % data_url)
+
+# ---------Environment variables---------#
+
+OPENAI_API_KEY = "sk-Umb3zXOPrKTEQMbnQXMzJKppO3d7ctyQhl"
+PEXELS_API_KEY = "7KygQ5mPe95mQGdwsJQ12SeSaGJo6GeVaP70shik"
+CLIENT_SECRETS = "xxxxxxxxxxfgh"
+INPUT_MEDIA = "/content/drive/MyDrive/audios"
+BG_MUSIC = ""
+os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+os.environ["PEXELS_API_KEY"] = PEXELS_API_KEY
+os.environ["CLIENT_SECRETS"] = CLIENT_SECRETS
+
+# ---------Output folder---------#
+
+directory_path = "output"
+if not os.path.exists(directory_path):
+    os.makedirs(directory_path)
+    print(f"Directory '{directory_path}' created successfully.")
+else:
+    print(f"Directory '{directory_path}' already exists.")
+
+# Clean all logs
+shutil.rmtree('/content/logs', ignore_errors=True)
+
+# ---------Process input media---------#
+
+from moviepy.editor import AudioFileClip
+
+# Check if INPUT_MEDIA is a folder path
+if os.path.isdir(INPUT_MEDIA):
+    audio_files = []
+    for root, dirs, files in os.walk(INPUT_MEDIA):
+        for file in files:
+            if file.endswith(('.mp3', '.wav', '.m4a')):
+                file_path = os.path.join(root, file)
+                audio_files.append(file_path)
+
+    for audio_file in audio_files:
+        input_basename = os.path.basename(audio_file).split(".")[0]
+        output_folder = os.path.join("output", input_basename)
+        os.makedirs(output_folder, exist_ok=True)
+
+        # Copy the provided input media to the output subfolder and rename it as voice.mp3
+        voice_path = os.path.join(output_folder, "voice.mp3")
+        shutil.copy(audio_file, voice_path)
+
+        # Get the duration of input media
+        audio = AudioFileClip(voice_path)
+        duration_in_seconds = round(audio.duration)
+
+        # Print the name of the voiceover file and its duration
+        print(f"Voice Generated: {os.path.basename(voice_path)} | Duration: {duration_in_seconds}s")
+
+        # ---------Transcribe & Get SRT---------#
+
+        !auto_subtitle "{voice_path}" --srt_only "True" --output_dir "{output_folder}" --language "en"
+
+        # ---------Adjust SRT Captions---------#
+        import pysrt
+        import string
+
+        subs = pysrt.open(os.path.join(output_folder, 'voice.srt'))
+        for sub in subs:
+            sub.text = sub.text.translate(str.maketrans("", "", string.punctuation))
+            if len(sub.text) > 20:
+                words = sub.text.split()
+                lines = []
+                current_line = ""
+                for word in words:
+                    if len(current_line) + len(word) <= 30:
+                        current_line += word.title() + " "
+                    else:
+                        lines.append(current_line.strip())
+                        current_line = word.title() + " "
+                if current_line:
+                    lines.append(current_line.strip())
+                sub.text = "\n".join(lines)
+            else:
+                sub.text = sub.text.title()
+        subs.save(os.path.join(output_folder, "voice.srt"))
+
+        # ---------Generate Clip Titles with ChatGPT---------#
+
+        from langchain_core.output_parsers import StrOutputParser
+        from langchain_core.prompts import ChatPromptTemplate
+        from langchain_openai import ChatOpenAI
+
+        template = """Imagine you're a highly imaginative artist with the unique ability to map the subjects
+        in a given SRT caption to a one word real-world objects and scenes.
+        It's important to keep the titles exactly one word, and title must be a real word object or scences
+        That human can vision, avoid providing teoritocal titles like: Paradox, Chrysalis, Journey, Reality, Accomplishment
+        Instead use real world titles that can bee seen by human eyes like Mansion, Yoga, Car, Money.
+        Give me exactly {num_clips} distinct clip titles.
+        Each title should seamlessly flow into the next, creating a captivating narrative,
+        and each title will be precisely 5 seconds long.
+        I want you to understand and imagine the big picture of the video and give me titles that matches
+        The entire video, not just invidual scences.
+
+        Get inspired by the SRT caption provided:
+
+        {srt_caption}
+
+        Output Instruction:
+        Provide only the titles. Each title must be separated by a new line,
+        do not mention numbers in titles and titles must be URL-encoded friendly.
+        Example Output:
+        Yoga
+        Forest
+        Office
+        Jogging
+        Sunset
+        Cafe
+        Hiking
+        Spa
+        Beach
+        Tea
+        Luxury
+        Money
+        """
+
+        prompt = ChatPromptTemplate.from_template(template)
+        model = ChatOpenAI(model="gpt-3.5-turbo")
+        output_parser = StrOutputParser()
+
+        chain = prompt | model | output_parser
+
+        num_clips = (duration_in_seconds // 5) + 1
+
+        with open(os.path.join(output_folder, "voice.srt"), "r") as f:
+            srt_caption = f.read()
+            output = chain.invoke({"num_clips": num_clips, "srt_caption": srt_caption})
+
+        clips_titles = output.strip().split("\n")
+
+        # ---------Fetch Videos from Pexels based on previously generated Titles---------#
+        import requests
+        from collections import Counter
+        from moviepy.editor import AudioFileClip
+
+        clip_counter = Counter(clips_titles)
+        clips_paths = []
+        selected_videos = set()
+
+        for title, count in clip_counter.items():
+            headers = {
+                "Authorization": os.environ["PEXELS_API_KEY"],
+            }
+            url = f"https://api.pexels.com/videos/search?query={title}&per_page=15&orientation=portrait&size=medium"
+            response = requests.get(url, headers=headers)
+
+            if response.status_code == 200:
+                videos = response.json()["videos"]
+                for i in range(count):
+                    available_videos = [
+                        video
+                        for video in videos
+                        if video["video_files"][0]["link"] not in selected_videos
+                    ]
+                    if not available_videos:
+                        print(f"No more available videos for title '{title}'.")
+                        break
+
+                    video = random.choice(available_videos)
+                    video_url = video["video_files"][0]["link"]
+                    temp_name = f"{title}_{i}.mp4"
+                    video_path = os.path.join(output_folder, temp_name)
+                    with open(video_path, "wb") as video_file:
+                        video_file.write(requests.get(video_url).content)
+                    clips_paths.append(video_path)
+                    selected_videos.add(video_url)
+            else:
+                print(f"Failed to fetch videos for title '{title}'. Status code: {response.status_code}"
+                )
+
+        for i in range(num_clips - len(clips_paths)):
+            clips_paths.append(clips_paths[0])
+
+        # ---------Resize the length of each fetched video (if titles were generated 5sec)---------#
+
+        from moviepy.video.io.VideoFileClip import VideoFileClip
+        from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
+        from moviepy.video.fx.all import resize
+
+        def resize_clip(input_video_path, duration=5, new_dimensions=(720, 1280)):
+            video_clip = VideoFileClip(input_video_path)
+            total_duration = video_clip.duration
+            start_time = (total_duration - duration) / 2
+            end_time = start_time + duration
+            video_clip = video_clip.subclip(start_time, end_time)
+
+            video_clip = resize(video_clip, new_dimensions)
+            return video_clip
+
+        clips = [resize_clip(cp) for cp in clips_paths]
+
+        # ---------Align all clips, add background (optional) and get Video---------#
+        import requests
+        from moviepy.editor import VideoFileClip, CompositeAudioClip, concatenate_videoclips, AudioFileClip
+        from moviepy.audio.fx.all import volumex
+
+        # Ensure the 'output' directory exists
+        if not os.path.exists(output_folder):
+            os.makedirs(output_folder)
+
+        # Initialize an empty music_audio variable
+        music_audio = None
+
+        # Check if BG_MUSIC is provided
+        if BG_MUSIC.strip():
+            # Download the background music
+            music_response = requests.get(BG_MUSIC)
+
+            # Save the music file to 'output/music.mp3'
+            with open(os.path.join(output_folder, 'music.mp3'), 'wb') as music_file:
+                music_file.write(music_response.content)
+
+            # Load and process the background music
+            music_audio = AudioFileClip(os.path.join(output_folder, "music.mp3")).fx(volumex, 0.3)  # Adjusted volume level to 0.3
+            t_start = int(music_audio.duration // 2 - duration_in_seconds // 2)
+            music_audio = music_audio.subclip(t_start, duration_in_seconds + t_start)
+
+        # Load and process the voice audio
+        voice_audio = AudioFileClip(os.path.join(output_folder, "voice.mp3")).fx(volumex, 3)
+
+        # Combine the voice audio with background music if it exists
+        if music_audio:
+            audio = CompositeAudioClip([voice_audio, music_audio])
+        else:
+            audio = voice_audio
+
+        # Concatenate the video clips
+        final_clip = concatenate_videoclips(clips, method="compose").subclip(0, duration_in_seconds)
+
+        # Set the audio for the final clip
+        final_clip = final_clip.set_audio(audio)
+
+        # Write the final video file
+        final_clip.write_videofile(os.path.join(output_folder, "composite_video.mp4"), codec="libx264", audio_codec="aac", fps=24)
+
+        # ---------Render Final Video with Subtitles---------#
+        from moviepy.editor import TextClip, CompositeVideoClip
+        from moviepy.video.tools.subtitles import SubtitlesClip
+
+        video = VideoFileClip(os.path.join(output_folder, "composite_video.mp4"))
+        watermark_clip = TextClip("@Enterprisium", font="Nimbus-Sans-Bold", fontsize=24,
+                                  color='white', size=(640, 480)).set_duration(video.duration)
+        generator = lambda txt: TextClip(txt, font="Nimbus-Sans-Bold", fontsize=36,
+                                         color='white', size=(video.w, video.h),
+                                         stroke_color='black', stroke_width=1.5)
+        subtitles = SubtitlesClip(os.path.join(output_folder, "voice.srt"), generator)
+        result = CompositeVideoClip([video, subtitles.set_position(('center')),
+                                     watermark_clip.set_position(('center', 'bottom'))])
+        result.write_videofile(os.path.join(output_folder, "out.mp4"), fps=video.fps, codec="libx264",
+                               audio_codec="aac")
+
+        print(f"Final video saved to: {os.path.join(output_folder, 'out.mp4')}")
