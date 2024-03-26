@@ -41,15 +41,15 @@ IMPUT = "/content/drive/MyDrive/audios"  # @param {type:"string"}
 #Select the language of input media or leave it as auto for auto detection
 Language = "English"  # @param ["English", "Auto", "Pakistan (English)", "German"]
 #select the desire video formate
-FORMAT = "Landscape"  # @param ["Landscape", "Vertical"]
+FORMAT = "Landscape (Youtube 16:9)"  # @param ["Landscape (Youtube 16:9)", "Portrait  (Tiktok 9:16)", "Square (Instagram 10:10)"]
 #This is optional either put direct download link of background music or leave empty
-MUSIC = ""
+MUSIC = ""  # @param {type:"string"}
 #This is optional you can leave empty if you do not want to use any Watermark to the video
 WATERMARK = "Enterprisium"  # @param {type:"string"}
 # Select the font name, font size, color, Subtitles style to be used in the video or Leave it as it is to use Default (Simple)
-FONT_STYLE = "Nimbus-Sans-Bold, 24, White, Word_Highlight" # @param {type:"string"}
+FONT_STYLE = "Nimbus-Sans-Bold, 24, White, Simple" # @param {type:"string"}
 # select weather you want auto matically upload the final video to youtube directly, or upload and want to upload & schedule both or do Nothing
-UPLOAD = "Upload ONLY"  # @param ["Upload ONLY", "Upload & SCHEDULE", "NOTHING" " "]
+UPLOAD = "Upload ONLY"  # @param ["Upload ONLY", "Upload & SCHEDULE", " "]
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 os.environ["PEXELS_API_KEY"] = PEXELS_API_KEY
 os.environ["CLIENT_SECRETS"] = CLIENT_SECRETS
